@@ -1,4 +1,5 @@
 from typing import Optional, AnyStr, Tuple
+import json
 from socket import getservbyname
 import httpx
 import base64
@@ -6,11 +7,16 @@ import ssl
 from lxml import etree
 from collections import namedtuple
 
+from first import first
+
+
+
 __all__ = [
     'Device',
     'CommandResults'
 ]
 
+_xparser = etree.XMLParser(recover=True)
 _ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)
 
 
@@ -25,17 +31,18 @@ _NXAPI_CMD_TEMPLATE = """\
 <output_format>{ofmt}</output_format>
 </ins_api>"""
 
-CommandResults = namedtuple("CommandResuls", ["ok", "command", "results"])
+CommandResults = namedtuple("CommandResuls", ["ok", "command", "output"])
 
 
 class Transport(object):
     CMDTYPES_OPTIONS = ("cli_show", "cli_show_ascii", "cli_conf", "bash")
     OFMT_OPTIONS = ("xml", "json", "text")
 
-    def __init__(self, host, proto, port, creds):
+    def __init__(self, host, proto, port, creds, timeout=60):
         port = port or getservbyname(proto)
         self.client = httpx.AsyncClient(
-            base_url=httpx.URL(f"{proto}://{host}:{port}"), verify=_ssl_context
+            base_url=httpx.URL(f"{proto}://{host}:{port}"), verify=_ssl_context,
+            timeout=httpx.Timeout(timeout)
         )
 
         self.client.headers["Content-Type"] = "application/xml"
@@ -50,7 +57,18 @@ class Transport(object):
         self.cmd_type = "cli_show"
         self.ofmt = "xml"
 
-    def form_command(self, cmd_input, cmd_type=None, ofmt=None, sid=None):
+    @property
+    def timeout(self):
+        return self.client.timeout
+
+    @timeout.setter
+    def timeout(self, value):
+        self.client.timeout = httpx.Timeout(value)
+
+    def form_command(self, cmd_input, formatting, sid=None):
+        cmd_type = formatting.setdefault('cmd_type', self.cmd_type)
+        ofmt = formatting.setdefault('ofmt', self.ofmt)
+
         return _NXAPI_CMD_TEMPLATE.format(
             api_ver="1.2",
             cmd_type=cmd_type or self.cmd_type,
@@ -60,16 +78,38 @@ class Transport(object):
             ofmt=ofmt or self.ofmt,
         )
 
-    async def post(self, xcmd):
+    async def post(self, xcmd, formatting):
         res = await self.client.post("/ins", data=xcmd)
         res.raise_for_status()
-        as_xml = etree.XML(res.text)
+
+        if formatting['ofmt'] == 'json':
+            as_json = json.loads(res.text)
+            return [
+                CommandResults(ok=cmd_res['code'] == '200',
+                               command=cmd_res['input'],
+                               output=cmd_res['body'])
+
+                for cmd_res in as_json['ins_api']['outputs']['output']
+            ]
+
+        # Output format is "xml" or "text"; but in either case the body content
+        # is extracted in the same manner.
+
+        as_xml = etree.fromstring(res.text, parser=_xparser)
+
+        def body_is_text(res):
+            return res.find('body').text.strip()
+
+        def body_is_xml(ele):
+            return ele.find('body')
+
+        get_output = body_is_text if formatting['cmd_type'] == 'cli_show_ascii' else body_is_xml
 
         return [
             CommandResults(
                 ok=cmd_res.findtext("code") == "200",
                 command=cmd_res.findtext("input").strip(),
-                results=cmd_res.find("body"),
+                output=get_output(cmd_res)
             )
             for cmd_res in as_xml.xpath("outputs/output")
         ]
@@ -85,8 +125,19 @@ class Device(object):
     ):
         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
 
-    async def exec(self, commands):
+    async def exec(self, commands, ofmt=None):
         """
         Execute a list of operational commands and return the output as a list of CommandResults.
         """
-        return await self.api.post(self.api.form_command(' ;'.join(commands)))
+        formatting = dict(ofmt=ofmt)
+
+        if ofmt == 'text':
+            formatting['cmd_type'] = 'cli_show_ascii'
+            formatting['ofmt'] = 'xml'
+
+        xcmd = self.api.form_command(' ;'.join(commands), formatting)
+        return await self.api.post(xcmd, formatting)
+
+    async def get_config(self):
+        res = first(await self.exec(['show running-config'], ofmt='text'))
+        return res.output.text
