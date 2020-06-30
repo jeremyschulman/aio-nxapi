@@ -1,3 +1,11 @@
+"""
+This module provides the asyncio client for Cisco NX-API, expected to work on:
+    * N3K system
+    * N5K system  (tested)
+    * N7K system
+    * N9K system
+"""
+
 from typing import Optional, AnyStr, Tuple, List
 
 import json
@@ -12,11 +20,11 @@ from collections import namedtuple
 __all__ = ["Device", "CommandResults"]
 
 _xparser = etree.XMLParser(recover=True)
-_ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)     # noqa
+_ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)  # noqa
 
 
 _NXAPI_CMD_TEMPLATE = """\
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <ins_api>
 <version>{api_ver}</version>
 <type>{cmd_type}</type>
@@ -113,6 +121,20 @@ class Transport(object):
             for cmd_res in as_xml.xpath("outputs/output")
         ]
 
+    async def post_config(self, xcmd):
+        """
+        This coroutine is used to push the configuration to the device an return any
+        error XML elements.  If no errors then return value is None.
+        """
+        res = await self.client.post("/ins", data=xcmd)
+        res.raise_for_status()
+        as_xml = etree.fromstring(res.text, parser=_xparser)
+
+        if any_errs := as_xml.xpath(".//code[. != '200']"):
+            return any_errs
+
+        return None
+
 
 class Device(object):
     def __init__(
@@ -139,6 +161,13 @@ class Device(object):
         xcmd = self.api.form_command(" ;".join(commands), formatting)
         return await self.api.post(xcmd, formatting)
 
-    async def get_config(self):
-        res = await self.exec(["show running-config"], ofmt="text")
+    async def push_config(self, content: AnyStr):
+        xcmd = self.api.form_command(
+            cmd_input=" ; ".join(content.splitlines()),
+            formatting=dict(cmd_type="cli_conf", ofmt="xml"),
+        )
+        return await self.api.post_config(xcmd)
+
+    async def get_config(self, ofmt="text"):
+        res = await self.exec(["show running-config"], ofmt=ofmt)
         return res[0].output

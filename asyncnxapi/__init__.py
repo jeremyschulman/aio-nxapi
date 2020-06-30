@@ -1,1 +1,1 @@
-from .device import Device, CommandResults
+from .device import Device, CommandResults  # noqa
