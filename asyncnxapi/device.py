@@ -16,10 +16,12 @@ import ssl
 from lxml import etree
 from collections import namedtuple
 
+from . import xmlhelp
+
 
 __all__ = ["Device", "CommandResults"]
 
-_xparser = etree.XMLParser(recover=True)
+
 _ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)  # noqa
 
 
@@ -82,25 +84,31 @@ class Transport(object):
             ofmt=ofmt or self.ofmt,
         )
 
-    async def post(self, xcmd, formatting):
+    async def post(self, xcmd, formatting, strip_ns=False):
         res = await self.client.post("/ins", data=xcmd)
         res.raise_for_status()
 
         if formatting["ofmt"] == "json":
             as_json = json.loads(res.text)
+
+            outputs = as_json["ins_api"]["outputs"]["output"]
+            if not isinstance(outputs, list):
+                outputs = [outputs]
+
             return [
                 CommandResults(
                     ok=cmd_res["code"] == "200",
                     command=cmd_res["input"],
                     output=cmd_res["body"],
                 )
-                for cmd_res in as_json["ins_api"]["outputs"]["output"]
+                for cmd_res in outputs
             ]
 
         # Output format is "xml" or "text"; but in either case the body content
         # is extracted in the same manner.
 
-        as_xml = etree.fromstring(res.text, parser=_xparser)
+        as_text = xmlhelp.strip_ns(res.text) if strip_ns else res.text
+        as_xml = xmlhelp.fromstring(as_text)
 
         def body_is_text(_res_e):
             return _res_e.find("body").text.strip()
@@ -121,14 +129,14 @@ class Transport(object):
             for cmd_res in as_xml.xpath("outputs/output")
         ]
 
-    async def post_config(self, xcmd):
+    async def post_write_config(self, xcmd):
         """
         This coroutine is used to push the configuration to the device an return any
         error XML elements.  If no errors then return value is None.
         """
         res = await self.client.post("/ins", data=xcmd)
         res.raise_for_status()
-        as_xml = etree.fromstring(res.text, parser=_xparser)
+        as_xml = xmlhelp.fromstring(res.text)
 
         if any_errs := as_xml.xpath(".//code[. != '200']"):
             return any_errs
@@ -147,7 +155,8 @@ class Device(object):
         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
 
     async def exec(
-        self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None
+        self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None,
+        strip_ns=False
     ) -> List[CommandResults]:
         """
         Execute a list of operational commands and return the output as a list of CommandResults.
@@ -159,15 +168,15 @@ class Device(object):
             formatting["ofmt"] = "xml"
 
         xcmd = self.api.form_command(" ;".join(commands), formatting)
-        return await self.api.post(xcmd, formatting)
+        return await self.api.post(xcmd, formatting, strip_ns=strip_ns)
 
     async def push_config(self, content: AnyStr):
         xcmd = self.api.form_command(
             cmd_input=" ; ".join(content.splitlines()),
             formatting=dict(cmd_type="cli_conf", ofmt="xml"),
         )
-        return await self.api.post_config(xcmd)
+        return await self.api.post_write_config(xcmd)
 
     async def get_config(self, ofmt="text"):
-        res = await self.exec(["show running-config"], ofmt=ofmt)
+        res = await self.exec(["show running-config"], ofmt=ofmt, strip_ns=True)
         return res[0].output
