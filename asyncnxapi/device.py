@@ -107,8 +107,6 @@ class Transport(object):
         # Output format is "xml" or "text"; but in either case the body content
         # is extracted in the same manner.
 
-        with open('last.xml', 'w+') as ofile: ofile.write(res.text)
-
         as_text = xmlhelp.strip_ns(res.text) if strip_ns else res.text
         as_xml = xmlhelp.fromstring(as_text)
 
