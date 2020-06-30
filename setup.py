@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-package_name = "asyncnxapi"
+package_name = "aio-nxapi"
 package_version = open("VERSION").read().strip()
 
 
