@@ -150,8 +150,11 @@ class Device(object):
         creds: Tuple[str, str],
         proto: Optional[AnyStr] = "https",
         port=None,
+        private=None
     ):
         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
+        self.private = private
+        self.host = host
 
     async def exec(
         self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None, strip_ns=False
