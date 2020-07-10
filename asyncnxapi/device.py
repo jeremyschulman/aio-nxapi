@@ -13,7 +13,6 @@ from socket import getservbyname
 import httpx
 import base64
 import ssl
-from lxml import etree
 from collections import namedtuple
 
 from . import xmlhelp
@@ -36,7 +35,7 @@ _NXAPI_CMD_TEMPLATE = """\
 <output_format>{ofmt}</output_format>
 </ins_api>"""
 
-CommandResults = namedtuple("CommandResuls", ["ok", "command", "output"])
+CommandResults = namedtuple("CommandResults", ["ok", "command", "output"])
 
 
 class Transport(object):
@@ -151,12 +150,14 @@ class Device(object):
         creds: Tuple[str, str],
         proto: Optional[AnyStr] = "https",
         port=None,
+        private=None
     ):
         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
+        self.private = private
+        self.host = host
 
     async def exec(
-        self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None,
-        strip_ns=False
+        self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None, strip_ns=False
     ) -> List[CommandResults]:
         """
         Execute a list of operational commands and return the output as a list of CommandResults.
