@@ -1,8 +1,10 @@
 import re
 from lxml import etree
 
-_REGEX_tags_with_ns = re.compile(r"</?((\S+?:)[^<]+)>", re.MULTILINE)
 _xparser = etree.XMLParser(recover=True)
+
+
+_REGEX_tags_with_ns = re.compile(r"</?((\S+?:)[^<]+)>", re.MULTILINE)
 
 
 def _sub_ns_remove(mo):
