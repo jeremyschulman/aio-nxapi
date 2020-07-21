@@ -20,8 +20,19 @@ from . import xmlhelp
 
 __all__ = ["Device", "CommandResults"]
 
+_ssl_context = ssl.create_default_context()
+_ssl_context.options &= ~ssl.OP_NO_TLSv1_2 & ~ssl.OP_NO_TLSv1_1
+_ssl_context.minimum_version = ssl.TLSVersion.TLSv1
+_ssl_context.check_hostname = False
+_ssl_context.verify_mode = ssl.CERT_NONE
+_ssl_context.set_ciphers('HIGH:!DH:!aNULL')
 
-_ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)  # noqa
+# _ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)  # noqa
+
+# _ssl_context = ssl.create_default_context()
+# # Sets up old and insecure TLSv1.
+# _ssl_context.options &= ~ssl.OP_NO_TLSv1_3 & ~ssl.OP_NO_TLSv1_2 & ~ssl.OP_NO_TLSv1_1
+# _ssl_context.minimum_version = ssl.TLSVersion.TLSv1
 
 
 _NXAPI_CMD_TEMPLATE = """\
@@ -44,6 +55,7 @@ class Transport(object):
 
     def __init__(self, host, proto, port, creds, timeout=60):
         port = port or getservbyname(proto)
+
         self.client = httpx.AsyncClient(
             base_url=httpx.URL(f"{proto}://{host}:{port}"),
             verify=_ssl_context,
