@@ -1,21 +1,26 @@
-import re
 from lxml import etree
 
 _xparser = etree.XMLParser(recover=True)
 
 
-_REGEX_tags_with_ns = re.compile(r"</?((\S+?:)[^<]+)>", re.MULTILINE)
+def strip_ns(root: etree.Element) -> etree.Element:
+    """
+    This function removes all namespace information from an XML Element tree
+    so that a Caller can then use the `xpath` function without having
+    to deal with the complexities of namespaces.
+    """
 
+    # first we visit each node in the tree and set the tag name to its localname
+    # value; thus removing its namespace prefix
 
-def _sub_ns_remove(mo):
-    orig_tag = mo.string[mo.start() : mo.end()]
-    ns = mo.group(2)
-    new_tag = orig_tag.replace(ns, "")
-    return new_tag
+    for elem in root.getiterator():
+        elem.tag = etree.QName(elem).localname
 
+    # at this point there are no tags with namespaces, so we run the cleanup
+    # process to remove the namespace definitions from within the tree.
 
-def strip_ns(content):
-    return _REGEX_tags_with_ns.sub(repl=_sub_ns_remove, string=content)
+    etree.cleanup_namespaces(root)
+    return root
 
 
 def fromstring(content):
