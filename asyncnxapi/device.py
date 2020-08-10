@@ -52,6 +52,7 @@ CommandResults = namedtuple("CommandResults", ["ok", "command", "output"])
 class Transport(object):
     CMDTYPES_OPTIONS = ("cli_show", "cli_show_ascii", "cli_conf", "bash")
     OFMT_OPTIONS = ("xml", "json", "text")
+    API_VER = "1.0"
 
     def __init__(self, host, proto, port, creds, timeout=60):
         port = port or getservbyname(proto)
@@ -87,7 +88,7 @@ class Transport(object):
         ofmt = formatting.setdefault("ofmt", self.ofmt)
 
         return _NXAPI_CMD_TEMPLATE.format(
-            api_ver="1.2",
+            api_ver=self.API_VER,
             cmd_type=cmd_type or self.cmd_type,
             cmd_input=cmd_input,
             chunk=0,
