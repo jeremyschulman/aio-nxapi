@@ -1,5 +1,3 @@
-wheel
-requests
 invoke
 black
 flake8
