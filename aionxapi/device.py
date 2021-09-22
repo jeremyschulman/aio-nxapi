@@ -54,7 +54,7 @@ class Device(httpx.AsyncClient):
 
     def __init__(
         self,
-        host,
+        host: Optional[str] = None,
         proto: Optional[str] = "https",
         port: Optional[str] = None,
         username: Optional[str] = None,
@@ -62,14 +62,13 @@ class Device(httpx.AsyncClient):
         **kwargs,
     ):
         port = port or getservbyname(proto)
+
         kwargs.setdefault("timeout", self.DEFAULT_TIMEOUT)
         kwargs.setdefault("auth", self.auth or httpx.BasicAuth(username, password))
+        kwargs.setdefault('base_url', f"{proto}://{host}:{port}")
+        kwargs.setdefault('verify', _ssl_context)
 
-        super(Device, self).__init__(
-            base_url=httpx.URL(f"{proto}://{host}:{port}"),
-            verify=_ssl_context,
-            **kwargs,
-        )
+        super(Device, self).__init__(**kwargs)
 
         self.headers["Content-Type"] = "application/xml"
         self.cmd_type = "cli_show"
