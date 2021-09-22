@@ -25,7 +25,7 @@ _ssl_context.options &= ~ssl.OP_NO_TLSv1_2 & ~ssl.OP_NO_TLSv1_1
 _ssl_context.minimum_version = ssl.TLSVersion.TLSv1
 _ssl_context.check_hostname = False
 _ssl_context.verify_mode = ssl.CERT_NONE
-_ssl_context.set_ciphers('HIGH:!DH:!aNULL')
+_ssl_context.set_ciphers("HIGH:!DH:!aNULL")
 
 # _ssl_context = ssl.SSLContext(ssl_version=ssl.PROTOCOL_TLSv1_1)  # noqa
 
@@ -163,7 +163,7 @@ class Device(object):
         creds: Tuple[str, str],
         proto: Optional[AnyStr] = "https",
         port=None,
-        private=None
+        private=None,
     ):
         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
         self.private = private
