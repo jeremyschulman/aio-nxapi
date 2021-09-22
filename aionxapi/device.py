@@ -144,19 +144,19 @@ class Device(httpx.AsyncClient):
         res = await self.nxapi_exec(nxapi_cmd, formatting=formatting, strip_ns=strip_ns)
         return res[0] if command else res
 
-    async def nxapi_write_config(self, xcmd):
-        """
-        This coroutine is used to push the configuration to the device and
-        return any error XML elements.  If no errors then return value is None.
-        """
-        res = await self.post("/ins", data=xcmd)
-        res.raise_for_status()
-        as_xml = xmlhelp.fromstring(res.text)
-
-        if any_errs := as_xml.xpath(".//code[. != '200']"):
-            return any_errs
-
-        return None
+    # async def nxapi_write_config(self, xcmd):
+    #     """
+    #     This coroutine is used to push the configuration to the device and
+    #     return any error XML elements.  If no errors then return value is None.
+    #     """
+    #     res = await self.post("/ins", data=xcmd)
+    #     res.raise_for_status()
+    #     as_xml = xmlhelp.fromstring(res.text)
+    #
+    #     if any_errs := as_xml.xpath(".//code[. != '200']"):
+    #         return any_errs
+    #
+    #     return None
 
 
 # class Device(object):
