@@ -64,9 +64,17 @@ class Device(httpx.AsyncClient):
         port = port or getservbyname(proto)
 
         kwargs.setdefault("timeout", self.DEFAULT_TIMEOUT)
-        kwargs.setdefault("auth", self.auth or httpx.BasicAuth(username, password))
-        kwargs.setdefault('base_url', f"{proto}://{host}:{port}")
-        kwargs.setdefault('verify', _ssl_context)
+
+        if username and password:
+            self.auth = httpx.BasicAuth(username, password)
+
+        kwargs.setdefault("auth", self.auth)
+
+        if not kwargs["auth"]:
+            raise ValueError(f"Missing required authentication")
+
+        kwargs.setdefault("base_url", f"{proto}://{host}:{port}")
+        kwargs.setdefault("verify", _ssl_context)
 
         super(Device, self).__init__(**kwargs)
 
