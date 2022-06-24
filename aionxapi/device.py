@@ -86,7 +86,7 @@ class Device(httpx.AsyncClient):
         kwargs.setdefault("auth", self.auth)
 
         if not kwargs["auth"]:
-            raise ValueError(f"Missing required authentication")
+            raise ValueError("Missing required authentication")
 
         kwargs.setdefault("base_url", f"{proto}://{host}:{self.port}")
         kwargs.setdefault("verify", _ssl_context)
@@ -121,7 +121,11 @@ class Device(httpx.AsyncClient):
             if not isinstance(outputs, list):
                 outputs = [outputs]
 
-            return [cmd_res["body"] for cmd_res in outputs]
+            # if the command results are empty then there is no 'body' in the
+            # response dictionary.  in this case a return value of None
+            # indicates this condition to the Caller.
+
+            return [cmd_res.get("body") for cmd_res in outputs]
 
         # Output format is "xml" or "text"; but in either case the body content
         # is extracted in the same manner.
