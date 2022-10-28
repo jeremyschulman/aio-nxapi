@@ -22,4 +22,6 @@ doccheck:
 clean:
 	rm -rf .pytest_cache
 	find . -name '__pycache__' | xargs rm -rf
+	rm -rf dist build *.egg-info
+	rm poetry.lock
 

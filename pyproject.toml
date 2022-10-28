@@ -10,7 +10,7 @@ authors = ["Jeremy Schulman"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.11"
 httpx = "^0.23.0"
 lxml = "^4.9.1"
 

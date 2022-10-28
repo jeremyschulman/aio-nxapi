@@ -538,8 +538,8 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.10"
-content-hash = "b23ef37e76c836c60abf09625a63712445d8701cbb23e5012634d85515af33d5"
+python-versions = ">=3.10,<3.11"
+content-hash = "7e3dfa792acd680264811e37613f677d1db52ba4506e6a17dbc9391e450ac612"
 
 [metadata.files]
 anyio = [
