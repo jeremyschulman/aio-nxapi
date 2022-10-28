@@ -1,5 +1,9 @@
 [tool.poetry]
 name = "aio-nxapi"
+packages = [
+    { include = "aionxapi" },
+    { include = "asyncnxapi" }
+]
 version = "0.5.0"
 description = "Cisco NX-API asyncio client"
 authors = ["Jeremy Schulman"]
