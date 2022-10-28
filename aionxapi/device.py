@@ -6,11 +6,25 @@ This module provides the asyncio client for Cisco NX-API, expected to work on:
     * N9K system
 """
 
+# -----------------------------------------------------------------------------
+# System Imports
+# -----------------------------------------------------------------------------
+
 from typing import Optional, List, AnyStr
+import asyncio
 import json
 from socket import getservbyname
-import httpx
 import ssl
+
+# -----------------------------------------------------------------------------
+# Public Imports
+# -----------------------------------------------------------------------------
+
+import httpx
+
+# -----------------------------------------------------------------------------
+# Private Imports
+# -----------------------------------------------------------------------------
 
 from asyncnxapi import xmlhelp
 
@@ -61,7 +75,8 @@ class Device(httpx.AsyncClient):
         password: Optional[str] = None,
         **kwargs,
     ):
-        port = port or getservbyname(proto)
+        self.port = port or getservbyname(proto)
+        self.host = host
 
         kwargs.setdefault("timeout", self.DEFAULT_TIMEOUT)
 
@@ -71,9 +86,9 @@ class Device(httpx.AsyncClient):
         kwargs.setdefault("auth", self.auth)
 
         if not kwargs["auth"]:
-            raise ValueError(f"Missing required authentication")
+            raise ValueError("Missing required authentication")
 
-        kwargs.setdefault("base_url", f"{proto}://{host}:{port}")
+        kwargs.setdefault("base_url", f"{proto}://{host}:{self.port}")
         kwargs.setdefault("verify", _ssl_context)
 
         super(Device, self).__init__(**kwargs)
@@ -106,7 +121,11 @@ class Device(httpx.AsyncClient):
             if not isinstance(outputs, list):
                 outputs = [outputs]
 
-            return [cmd_res["body"] for cmd_res in outputs]
+            # if the command results are empty then there is no 'body' in the
+            # response dictionary.  in this case a return value of None
+            # indicates this condition to the Caller.
+
+            return [cmd_res.get("body") for cmd_res in outputs]
 
         # Output format is "xml" or "text"; but in either case the body content
         # is extracted in the same manner.
@@ -139,7 +158,7 @@ class Device(httpx.AsyncClient):
         if not any((command, commands)):
             raise RuntimeError("Required 'command' or 'commands'")
 
-        formatting = dict(ofmt=ofmt)
+        formatting = dict(ofmt=ofmt or self.ofmt)
 
         if ofmt == "text":
             formatting["cmd_type"] = "cli_show_ascii"
@@ -150,6 +169,23 @@ class Device(httpx.AsyncClient):
         )
         res = await self.nxapi_exec(nxapi_cmd, formatting=formatting, strip_ns=strip_ns)
         return res[0] if command else res
+
+    async def check_connection(self) -> bool:
+        """
+        This function checks the target device to ensure that the NXAPI port is
+        open and accepting connections.  It is recommended that a Caller checks
+        the connection before involing cli commands, but this step is not
+        required.
+
+        Returns
+        -------
+        True when the device NXAPI is accessible, False otherwise.
+        """
+        try:
+            await asyncio.open_connection(self.host, port=self.port)
+        except OSError:
+            return False
+        return True
 
     # async def nxapi_write_config(self, xcmd):
     #     """
@@ -164,43 +200,3 @@ class Device(httpx.AsyncClient):
     #         return any_errs
     #
     #     return None
-
-
-# class Device(object):
-#     def __init__(
-#         self,
-#         host: AnyStr,
-#         creds: Tuple[str, str],
-#         proto: Optional[AnyStr] = "https",
-#         port=None,
-#         private=None
-#     ):
-#         self.api = Transport(host=host, creds=creds, proto=proto, port=port)
-#         self.private = private
-#         self.host = host
-#
-#     async def exec(
-#         self, commands: List[AnyStr], ofmt: Optional[AnyStr] = None, strip_ns=False
-#     ) -> List[CommandResults]:
-#         """
-#         Execute a list of operational commands and return the output as a list of CommandResults.
-#         """
-#         formatting = dict(ofmt=ofmt)
-#
-#         if ofmt == "text":
-#             formatting["cmd_type"] = "cli_show_ascii"
-#             formatting["ofmt"] = "xml"
-#
-#         xcmd = self.api.form_command(" ;".join(commands), formatting)
-#         return await self.api.post(xcmd, formatting, strip_ns=strip_ns)
-#
-#     async def push_config(self, content: AnyStr):
-#         xcmd = self.api.form_command(
-#             cmd_input=" ; ".join(content.splitlines()),
-#             formatting=dict(cmd_type="cli_conf", ofmt="xml"),
-#         )
-#         return await self.api.post_write_config(xcmd)
-#
-#     async def get_config(self, ofmt="text"):
-#         res = await self.exec(["show running-config"], ofmt=ofmt, strip_ns=True)
-#         return res[0].output
