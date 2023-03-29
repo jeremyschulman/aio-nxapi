@@ -11,7 +11,6 @@ This module provides the asyncio client for Cisco NX-API, expected to work on:
 # -----------------------------------------------------------------------------
 
 from typing import Optional, List, AnyStr
-import asyncio
 import json
 from socket import getservbyname
 import ssl
@@ -27,7 +26,7 @@ import httpx
 # -----------------------------------------------------------------------------
 
 from asyncnxapi import xmlhelp
-
+from .aioportcheck import port_check_url
 
 __all__ = ["Device"]
 
@@ -181,11 +180,7 @@ class Device(httpx.AsyncClient):
         -------
         True when the device NXAPI is accessible, False otherwise.
         """
-        try:
-            await asyncio.open_connection(self.host, port=self.port)
-        except OSError:
-            return False
-        return True
+        return await port_check_url(self.base_url)
 
     # async def nxapi_write_config(self, xcmd):
     #     """
