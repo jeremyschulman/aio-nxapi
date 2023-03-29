@@ -4,7 +4,7 @@ packages = [
     { include = "aionxapi" },
     { include = "asyncnxapi" }
 ]
-version = "0.5.1"
+version = "0.5.2"
 description = "Cisco NX-API asyncio client"
 authors = ["Jeremy Schulman"]
 readme = "README.md"
