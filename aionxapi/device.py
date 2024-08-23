@@ -182,16 +182,8 @@ class Device(httpx.AsyncClient):
         """
         return await port_check_url(self.base_url)
 
-    # async def nxapi_write_config(self, xcmd):
-    #     """
-    #     This coroutine is used to push the configuration to the device and
-    #     return any error XML elements.  If no errors then return value is None.
-    #     """
-    #     res = await self.post("/ins", data=xcmd)
-    #     res.raise_for_status()
-    #     as_xml = xmlhelp.fromstring(res.text)
-    #
-    #     if any_errs := as_xml.xpath(".//code[. != '200']"):
-    #         return any_errs
-    #
-    #     return None
+    async def configure(self, config_text: str):
+        formatting = dict(cmd_type="cli_conf")
+        nxapi_cmd = self.nxapi_command(config_text, formatting)
+        res = await self.nxapi_exec(nxapi_cmd, formatting=formatting)
+        return res
